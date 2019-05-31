@@ -1,5 +1,7 @@
 # FileItem
 
+[![Build Status](https://travis-ci.com/AlcheraInc/FileItem.svg?branch=master)](https://travis-ci.com/AlcheraInc/FileItem)
+
 File system based object management
 
 ## How To

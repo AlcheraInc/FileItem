@@ -24,10 +24,13 @@ script:
  - go test -cover -v
 
 matrix:
+  allow_failures:
+    - os: windows
   include:
     - name: Go 1.11 Mac OS
       os: osx
     - name: Go 1.11 Linux
       os: linux
       dist: xenial
-      
+    - name: Go 1.11 Windows
+      os: windows
