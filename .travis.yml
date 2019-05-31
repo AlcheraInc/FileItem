@@ -1,0 +1,33 @@
+#
+# Authors
+#   github.com/luncliff	(dh.park@alcherainc.com)
+#
+language: go
+
+git:
+  quiet: true
+  submodules: true
+  depth: 3
+
+go: "1.11"
+
+before_install:
+ - echo "before_install"
+
+install:
+ - go version
+
+before_script:
+ - go env
+
+script:
+ - go test -cover -v
+
+matrix:
+  include:
+    - name: Go 1.11 Mac OS
+      os: osx
+    - name: Go 1.11 Linux
+      os: linux
+      dist: xenial
+      
