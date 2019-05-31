@@ -12,6 +12,7 @@ import (
 // ItemFinder ...
 //	Proxy to support item lookup
 type ItemFinder interface {
+
 	// FindNames ...
 	//	Yield known items' name with given type
 	FindNames(itemtype string) <-chan string
@@ -25,6 +26,9 @@ type ItemFinder interface {
 // ItemCreator ...
 //	Interface to create an FileItem or FileGroupItem
 type ItemCreator interface {
+
+	// NewItem ...
+	//	create a new item with given information
 	NewItem(iname, itype string, detail map[string]interface{}) FileGroupItem
 }
 
@@ -35,6 +39,8 @@ type ItemOwner interface {
 	ItemCreator
 	ItemFinder
 
+	// GetPath ...
+	//	Current owning path of this owner
 	GetPath() string
 
 	// Remove ...

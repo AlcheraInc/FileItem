@@ -10,9 +10,14 @@ import (
 )
 
 // Item ...
-//	Ensure item has type or organization and its own name for identification
+//	Ensure that the item has some properties
 type Item interface {
+	// GetName ...
+	//	Return its own name for identification
 	GetName() string
+
+	// GetType ...
+	//	Return its type for organization
 	GetType() string
 }
 
@@ -21,11 +26,13 @@ type Item interface {
 type FileItem interface {
 	Item
 
+	// GetPath ...
+	//	Current owning path of the item
 	GetPath() string
 }
 
 // FileGroupItem ...
-//  Resource with multiple files
+//	Resource with multiple files
 type FileGroupItem interface {
 	FileItem
 
@@ -33,6 +40,7 @@ type FileGroupItem interface {
 	//	Save as a file with given name.
 	//	If the file needs to be listed in object detail, use non-zero length ftype
 	SaveFile(fname, ftype string, r io.Reader) <-chan error
+
 	// LoadFile ...
 	//	Load a file with given name and type
 	LoadFile(fname, ftype string) <-chan io.ReadWriteCloser
