@@ -11,21 +11,16 @@ git:
 
 go: "1.11"
 
-before_install:
- - echo "before_install"
-
 install:
  - go version
-
-before_script:
  - go env
 
 script:
  - go test -cover -v
 
 matrix:
-  allow_failures:
-    - os: windows
+  # allow_failures:
+  #   - os: windows
   include:
     - name: Go 1.11 Mac OS
       os: osx
