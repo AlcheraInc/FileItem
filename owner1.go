@@ -45,9 +45,9 @@ func (set *fileset1) Close() error {
 	return nil
 }
 func (set *fileset1) Remove() {
+	for range set.grace {
+	}
 	os.RemoveAll(set.folder)
-	set.Close()
-	<-set.grace
 }
 
 func (set *fileset1) NewItem(iname, itype string, detail map[string]interface{}) FileGroupItem {

@@ -55,13 +55,15 @@ type rhub struct {
 }
 
 func (h *rhub) setup() {
+	const capacity = 10
+
 	h.exits, h.grace = make(chan error, 1), make(chan error, 1)
-	h.saves = make(chan *rsave)
-	h.loads = make(chan *rload)
-	h.searches = make(chan *rsearch)
-	h.creates = make(chan *rcreate)
-	h.deletes = make(chan *rdelete)
-	h.updates = make(chan *rupdate)
+	h.saves = make(chan *rsave, capacity)
+	h.loads = make(chan *rload, capacity)
+	h.searches = make(chan *rsearch, capacity)
+	h.creates = make(chan *rcreate, capacity)
+	h.deletes = make(chan *rdelete, capacity)
+	h.updates = make(chan *rupdate, capacity)
 }
 
 func (h *rhub) stop(err error) {
@@ -69,6 +71,8 @@ func (h *rhub) stop(err error) {
 }
 
 func (h *rhub) loop(r receiver) {
+	defer close(h.grace)
+	defer close(h.exits)
 	for {
 		select {
 		case msg := <-h.creates:
@@ -87,8 +91,7 @@ func (h *rhub) loop(r receiver) {
 			} else {
 				r.onSearch(msg.iname, msg.itype, msg.results, true)
 			}
-		case err := <-h.exits:
-			h.grace <- err
+		case <-h.exits:
 			return
 		}
 	}
