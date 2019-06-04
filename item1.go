@@ -7,6 +7,8 @@ package fileitem
 
 import (
 	"io"
+	"io/ioutil"
+	"log"
 	"path/filepath"
 	"time"
 )
@@ -84,8 +86,22 @@ func (r *item1) LoadFile(fname, ftype string) <-chan io.ReadWriteCloser {
 	return files
 }
 
+func (r *item1) readDir(ch chan<- string) {
+	defer close(ch)
+	files, err := ioutil.ReadDir(r.GetPath())
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	for _, finfo := range files {
+		if finfo.IsDir() == false {
+			ch <- finfo.Name()
+		}
+	}
+}
+
 func (r *item1) GetFiles() <-chan string {
 	ch := make(chan string, 0)
-	defer close(ch)
+	go r.readDir(ch)
 	return ch
 }

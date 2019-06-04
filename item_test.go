@@ -120,6 +120,16 @@ func TestItemAllowMultipleSave(t *testing.T) {
 	for err := range item.SaveFile("hello.txt", "", bytes.NewBuffer(blob)) {
 		t.Fatal(err)
 	}
+	exists := false
+	for fname := range item.GetFiles() {
+		t.Log(fname)
+		if fname == "hello.txt" {
+			exists = true
+		}
+	}
+	if exists == false {
+		t.FailNow()
+	}
 }
 
 func TestItemLoadUnknownFile(t *testing.T) {
