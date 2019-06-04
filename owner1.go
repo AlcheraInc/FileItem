@@ -223,6 +223,20 @@ func (set *fileset1) onSaveFile(msg *rsave) {
 		return
 	}
 }
+
+func (set *fileset1) onRemoveFile(msg *rremove) {
+	defer close(msg.fails)
+	s, err := os.Stat(msg.fpath)
+	if err != nil {
+		return
+	}
+	if s.IsDir() {
+		os.RemoveAll(msg.fpath)
+	} else {
+		os.Remove(msg.fpath)
+	}
+}
+
 func (set *fileset1) onLoadFile(msg *rload) {
 	defer close(msg.results)
 	file, err := os.Open(msg.fpath)

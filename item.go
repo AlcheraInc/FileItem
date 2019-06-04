@@ -36,10 +36,16 @@ type FileItem interface {
 type FileGroupItem interface {
 	FileItem
 
+	GetFiles() <-chan string
+
 	// SaveFile ...
 	//	Save as a file with given name.
 	//	If the file needs to be listed in object detail, use non-zero length ftype
 	SaveFile(fname, ftype string, r io.Reader) <-chan error
+
+	// RemoveFile ...
+	//	Delete a file it exists
+	RemoveFile(fname, ftype string) <-chan error
 
 	// LoadFile ...
 	//	Load a file with given name and type

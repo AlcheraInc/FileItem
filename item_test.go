@@ -169,3 +169,46 @@ func TestItemLoadAfterSave(t *testing.T) {
 		t.FailNow()
 	}
 }
+
+func TestItemDeleteUnknownFile(t *testing.T) {
+	owner, err := NewOwner1("pkg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer owner.Close()
+
+	item := owner.NewItem("item15", "test_item", nil)
+	if item == nil {
+		t.FailNow()
+	}
+	for err := range item.RemoveFile("hello.txt", "") {
+		t.Fatal(err)
+	}
+}
+
+func TestItemLoadAfterDelete(t *testing.T) {
+	owner, err := NewOwner1("pkg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer owner.Close()
+
+	item := owner.NewItem("item16", "test_item", nil)
+	if item == nil {
+		t.FailNow()
+	}
+
+	blob := prepareSysInfoT(t)
+	for err := range item.SaveFile("hello.txt", "", bytes.NewBuffer(blob)) {
+		t.Fatal(err)
+	}
+
+	for err := range item.RemoveFile("hello.txt", "") {
+		t.Fatal(err)
+	}
+
+	rc := <-item.LoadFile("hello.txt", "")
+	if rc != nil {
+		t.FailNow()
+	}
+}

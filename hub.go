@@ -24,11 +24,17 @@ type rupdate struct {
 	detail map[string]interface{}
 	fails  chan<- error
 }
+
 type rsave struct {
 	fpath    string
 	contents io.Reader
 	fails    chan<- error
 }
+type rremove struct {
+	fpath string
+	fails chan<- error
+}
+
 type rload struct {
 	fpath   string
 	results chan<- io.ReadWriteCloser
@@ -41,17 +47,22 @@ type receiver interface {
 	onDeleteItem(msg *rdelete)
 	onUpdateItem(msg *rupdate)
 	onSaveFile(msg *rsave)
+	onRemoveFile(msg *rremove)
 	onLoadFile(msg *rload)
 }
 
 type rhub struct {
 	exits, grace chan error
-	saves        chan *rsave
-	loads        chan *rload
-	searches     chan *rsearch
-	creates      chan *rcreate
-	deletes      chan *rdelete
-	updates      chan *rupdate
+
+	searches chan *rsearch
+
+	creates chan *rcreate
+	deletes chan *rdelete
+	updates chan *rupdate
+
+	saves   chan *rsave
+	loads   chan *rload
+	removes chan *rremove
 }
 
 func (h *rhub) setup() {
@@ -64,6 +75,7 @@ func (h *rhub) setup() {
 	h.creates = make(chan *rcreate, capacity)
 	h.deletes = make(chan *rdelete, capacity)
 	h.updates = make(chan *rupdate, capacity)
+	h.removes = make(chan *rremove, capacity)
 }
 
 func (h *rhub) stop(err error) {
@@ -81,10 +93,14 @@ func (h *rhub) loop(r receiver) {
 			r.onDeleteItem(msg)
 		case msg := <-h.updates:
 			r.onUpdateItem(msg)
+
 		case msg := <-h.saves:
 			r.onSaveFile(msg)
+		case msg := <-h.removes:
+			r.onRemoveFile(msg)
 		case msg := <-h.loads:
 			r.onLoadFile(msg)
+
 		case msg := <-h.searches:
 			if len(msg.iname) == 0 {
 				r.onSearchType(msg.itype, msg.results)

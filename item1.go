@@ -50,6 +50,17 @@ func (r *item1) GetPath() string {
 	return filepath.Join(r.root, r.GetType(), r.GetName())
 }
 
+func (r *item1) RemoveFile(fname, ftype string) <-chan error {
+	errs := make(chan error)
+
+	req := new(rremove)
+	req.fpath = filepath.Join(r.GetPath(), fname)
+	req.fails = errs
+	r.owner.removes <- req
+
+	return errs
+}
+
 func (r *item1) SaveFile(fname, ftype string, reader io.Reader) <-chan error {
 	errs := make(chan error)
 
@@ -58,17 +69,6 @@ func (r *item1) SaveFile(fname, ftype string, reader io.Reader) <-chan error {
 	req.fpath = filepath.Join(r.GetPath(), fname)
 	req.fails = errs
 	r.owner.saves <- req
-	// defer close(errs)
-	// f, err := os.OpenFile(filepath.Join(r.GetPath(), fname), os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0664)
-	// if err != nil {
-	// 	errs <- err
-	// 	return
-	// }
-	// defer f.Close()
-	// if _, err := io.Copy(f, reader); err != nil {
-	// 	errs <- err
-	// 	return
-	// }
 
 	return errs
 }
@@ -80,12 +80,12 @@ func (r *item1) LoadFile(fname, ftype string) <-chan io.ReadWriteCloser {
 	req.results = files
 	req.fpath = filepath.Join(r.GetPath(), fname)
 	r.owner.loads <- req
-	// defer close(files)
-	// f, err := os.Open(filepath.Join(r.GetPath(), fname))
-	// if err != nil {
-	// 	return
-	// }
-	// files <- f
 
 	return files
+}
+
+func (r *item1) GetFiles() <-chan string {
+	ch := make(chan string, 0)
+	defer close(ch)
+	return ch
 }
