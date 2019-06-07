@@ -126,6 +126,11 @@ func TestOwnerFindExistingItem(t *testing.T) {
 	for err := range owner.FindOne(item1, &detail) {
 		t.Fatal(err)
 	}
+
+	item2 := owner.Find(item1.GetName(), item1.GetType())
+	if item2 == nil {
+		t.Fatal("Find after NewItem failed")
+	}
 }
 
 func TestOwnerFindExistingItemWithNullRecieverFails(t *testing.T) {

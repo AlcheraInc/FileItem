@@ -17,6 +17,10 @@ type ItemFinder interface {
 	//	Yield known items' name with given type
 	FindNames(itemtype string) <-chan string
 
+	// Find ...
+	//	Find with minimum hint. There is no receiver for the object's detail
+	Find(iname, itype string) FileGroupItem
+
 	// FindOne ...
 	// 	Find one item with given name and type.
 	//	Its detail will be loaded to receiver object

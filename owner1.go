@@ -18,7 +18,7 @@ import (
 	"time"
 )
 
-const cacheFile, cacheFormat = "info.json", "json"
+const CacheFile, cacheFormat = "info.json", "json"
 
 type fileset1 struct {
 	name, folder string
@@ -112,6 +112,12 @@ func (set *fileset1) onDeleteItem(msg *rdelete) {
 	}
 }
 
+func (set *fileset1) Find(iname, itype string) FileGroupItem {
+	items := make(chan FileGroupItem, 1)
+	go set.search(iname, itype, items)
+	return <-items
+}
+
 func (set *fileset1) FindNames(itype string) <-chan string {
 	items, names := make(chan FileGroupItem, 5), make(chan string)
 	go set.search("", itype, items)
@@ -138,9 +144,9 @@ func (set *fileset1) FindOne(hint Item, receiver interface{}) <-chan error {
 		if item == nil {
 			return
 		}
-		file := <-item.LoadFile(cacheFile, cacheFormat)
+		file := <-item.LoadFile(CacheFile, cacheFormat)
 		if file == nil {
-			errs <- fmt.Errorf("failed to load '%s'", cacheFile)
+			errs <- fmt.Errorf("failed to load '%s'", CacheFile)
 			return
 		}
 		dec := json.NewDecoder(file)
@@ -211,7 +217,7 @@ func (set *fileset1) onUpdateItem(msg *rupdate) {
 			item.mergeTo(msg.detail)
 		}
 		buf, _ := json.Marshal(msg.detail)
-		for err := range item.SaveFile(cacheFile, cacheFormat, bytes.NewBuffer(buf)) {
+		for err := range item.SaveFile(CacheFile, cacheFormat, bytes.NewBuffer(buf)) {
 			msg.fails <- err
 		}
 	}()
