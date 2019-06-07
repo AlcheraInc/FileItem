@@ -51,6 +51,11 @@ func (set *fileset1) Remove() {
 }
 
 func (set *fileset1) NewItem(iname, itype string, detail map[string]interface{}) FileGroupItem {
+	// prevent bad creation with empty name and empty type
+	if len(iname) == 0 || len(itype) == 0 {
+		return nil
+	}
+	// accept the creation request
 	ch := make(chan FileGroupItem)
 	go set.create(iname, itype, ch)
 
