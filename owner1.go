@@ -199,7 +199,9 @@ func (set *fileset1) update(item FileGroupItem, detail map[string]interface{}, e
 func (set *fileset1) onUpdateItem(msg *rupdate) {
 	item, casted := msg.item.(*item1)
 	if casted == false {
-		log.Fatalln("type cast failed")
+		msg.fails <- errors.New("type cast failed")
+		close(msg.fails)
+		return
 	}
 	go func() {
 		defer close(msg.fails)
@@ -216,17 +218,20 @@ func (set *fileset1) onUpdateItem(msg *rupdate) {
 }
 
 func (set *fileset1) onSaveFile(msg *rsave) {
-	defer close(msg.fails)
 	file, err := os.OpenFile(msg.fpath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY|os.O_SYNC, 0664)
 	if err != nil {
 		msg.fails <- err
+		close(msg.fails)
 		return
 	}
-	defer file.Close()
-	if _, err := io.Copy(file, msg.contents); err != nil {
-		msg.fails <- err
-		return
-	}
+	go func() {
+		defer close(msg.fails)
+		defer file.Close()
+		if _, err := io.Copy(file, msg.contents); err != nil {
+			msg.fails <- err
+			return
+		}
+	}()
 }
 
 func (set *fileset1) onRemoveFile(msg *rremove) {
