@@ -61,8 +61,8 @@ func (set *fileset1) NewItem(iname, itype string, detail map[string]interface{})
 
 	item, errs := <-ch, make(chan error, 1)
 	go set.update(item, detail, errs)
-	for range errs {
-		log.Fatalln("update error")
+	for err := range errs {
+		log.Println(err)
 		return nil
 	}
 	return item
