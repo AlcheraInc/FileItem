@@ -9,6 +9,7 @@ import (
 	"io"
 	"io/ioutil"
 	"log"
+	"os"
 	"path/filepath"
 	"time"
 )
@@ -75,8 +76,8 @@ func (r *item1) SaveFile(fname, ftype string, reader io.Reader) <-chan error {
 	return errs
 }
 
-func (r *item1) LoadFile(fname, ftype string) <-chan io.ReadWriteCloser {
-	files := make(chan io.ReadWriteCloser)
+func (r *item1) LoadFile(fname, ftype string) <-chan *os.File {
+	files := make(chan *os.File)
 
 	req := new(rload)
 	req.results = files

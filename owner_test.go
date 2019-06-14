@@ -6,8 +6,11 @@ package fileitem
 //
 
 import (
+	"encoding/json"
+	"log"
 	"os"
 	"testing"
+	"time"
 )
 
 func isFile(t *testing.T, p string) {
@@ -71,10 +74,10 @@ func TestOwnerSearchWithType(t *testing.T) {
 	}
 	defer owner.Close()
 
-	item1 := owner.NewItem("item1", "test_item", nil)
-	item2 := owner.NewItem("item2", "test_item", nil)
-	item3 := owner.NewItem("item3", "test_item2", nil)
-	item4 := owner.NewItem("item4", "test_item2", nil)
+	item1 := <-owner.NewItem("item1", "test_item", nil)
+	item2 := <-owner.NewItem("item2", "test_item", nil)
+	item3 := <-owner.NewItem("item3", "test_item2", nil)
+	item4 := <-owner.NewItem("item4", "test_item2", nil)
 
 	count := 0
 	for name := range owner.FindNames("test_item") {
@@ -111,43 +114,38 @@ func TestOwnerSearchWithUnknownType(t *testing.T) {
 }
 
 func TestOwnerFindExistingItem(t *testing.T) {
+	log.SetFlags(log.Lshortfile)
+
 	owner, err := NewOwner1("pkg")
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer owner.Close()
 
-	item1 := owner.NewItem("item5", "test_item", nil)
+	item1 := <-owner.NewItem("item5", "test_item", nil)
 	if item1 == nil {
 		t.FailNow()
 	}
+	t.Log(item1.GetName(), item1.GetType())
+	time.Sleep(1 * time.Second)
 
-	var detail map[string]interface{}
-	for err := range owner.FindOne(item1, &detail) {
-		t.Fatal(err)
-	}
-
-	item2 := owner.Find(item1.GetName(), item1.GetType())
-	if item2 == nil {
-		t.Fatal("Find after NewItem failed")
-	}
-}
-
-func TestOwnerFindExistingItemWithNullRecieverFails(t *testing.T) {
-	owner, err := NewOwner1("pkg")
-	if err != nil {
-		t.Fatal(err)
-	}
-	defer owner.Close()
-
-	item1 := owner.NewItem("item6", "test_item", nil)
-	if item1 == nil {
-		t.FailNow()
-	}
-	for range owner.FindOne(item1, nil) {
+	for range owner.Find(item1.GetName(), item1.GetType()) {
 		return
 	}
-	t.FailNow()
+	t.Fatal("Find after NewItem failed")
+}
+
+func TestOwnerFindUnknownItem(t *testing.T) {
+	owner, err := NewOwner1("pkg")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer owner.Close()
+
+	item := owner.Find("item19", "test_item")
+	if item == nil {
+		t.Fatal("Find after NewItem failed")
+	}
 }
 
 func TestOwnerFailsToFindDeletedItem(t *testing.T) {
@@ -157,7 +155,7 @@ func TestOwnerFailsToFindDeletedItem(t *testing.T) {
 	}
 	defer owner.Close()
 
-	item1 := owner.NewItem("item7", "test_item", nil)
+	item1 := <-owner.NewItem("item7", "test_item", nil)
 	if item1 == nil {
 		t.FailNow()
 	}
@@ -166,11 +164,9 @@ func TestOwnerFailsToFindDeletedItem(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var detail map[string]interface{}
-	for range owner.FindOne(item1, &detail) {
-		return
+	for range owner.Find(item1.GetName(), item1.GetType()) {
+		t.FailNow()
 	}
-	t.FailNow()
 }
 
 type described struct {
@@ -185,18 +181,26 @@ func TestOwnerFindItemAndUpdate(t *testing.T) {
 	}
 	defer owner.Close()
 
-	item1 := owner.NewItem("item8", "test_item", map[string]interface{}{
+	item1 := <-owner.NewItem("item8", "test_item", map[string]interface{}{
 		"description": "hell world",
 	})
 	if item1 == nil {
 		t.FailNow()
 	}
 
-	item := new(described)
-	for err := range owner.FindOne(item1, &item) {
-		t.Fatal(err)
+	data := new(described)
+
+	item1 = <-owner.Find(item1.GetName(), item1.GetType())
+
+	for file := range item1.LoadFile(CacheFile, "") {
+		err := json.NewDecoder(file).Decode(&data)
+		file.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
-	if item.Desc != "hell world" {
+
+	if data.Desc != "hell world" {
 		t.FailNow()
 	}
 	for err := range owner.Update(item1, map[string]interface{}{
@@ -205,14 +209,19 @@ func TestOwnerFindItemAndUpdate(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var item2 map[string]interface{}
-	for err := range owner.FindOne(item1, &item2) {
+	var data2 map[string]interface{}
+	file2 := <-item1.LoadFile(CacheFile, "")
+	defer file2.Close()
+	if err := json.NewDecoder(file2).Decode(&data2); err != nil {
 		t.Fatal(err)
 	}
-	if item2["resource_type"] == nil {
+	if data.Desc != "hell world" {
 		t.FailNow()
 	}
-	if item2["description"].(string) != "world hell" {
+	if data2["resource_type"] == nil {
+		t.FailNow()
+	}
+	if data2["description"].(string) != "world hell" {
 		t.FailNow()
 	}
 }

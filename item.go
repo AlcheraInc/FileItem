@@ -7,6 +7,7 @@ package fileitem
 
 import (
 	"io"
+	"os"
 )
 
 // Item ...
@@ -49,5 +50,5 @@ type FileGroupItem interface {
 
 	// LoadFile ...
 	//	Load a file with given name and type
-	LoadFile(fname, ftype string) <-chan io.ReadWriteCloser
+	LoadFile(fname, ftype string) <-chan *os.File
 }

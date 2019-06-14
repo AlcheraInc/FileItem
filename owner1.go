@@ -9,7 +9,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"io"
 	"io/ioutil"
 	"log"
@@ -50,23 +49,28 @@ func (set *fileset1) Remove() {
 	os.RemoveAll(set.folder)
 }
 
-func (set *fileset1) NewItem(iname, itype string, detail map[string]interface{}) FileGroupItem {
+func (set *fileset1) NewItem(iname, itype string, detail map[string]interface{}) <-chan FileGroupItem {
+	ch := make(chan FileGroupItem)
 	// prevent bad creation with empty name and empty type
 	if len(iname) == 0 || len(itype) == 0 {
-		return nil
+		close(ch)
+		return ch
 	}
-	// accept the creation request
-	ch := make(chan FileGroupItem)
-	go set.create(iname, itype, ch)
-
-	item, errs := <-ch, make(chan error, 1)
-	go set.update(item, detail, errs)
-	for err := range errs {
-		log.Println(err)
-		return nil
-	}
-	return item
+	creates := make(chan FileGroupItem)
+	go set.create(iname, itype, creates)
+	go func() {
+		defer close(ch)
+		for item := range creates {
+			for err := range set.Update(item, detail) {
+				log.Println(err)
+				return
+			}
+			ch <- item
+		}
+	}()
+	return ch
 }
+
 func (set *fileset1) create(iname, itype string, ch chan<- FileGroupItem) {
 	req := new(rcreate)
 	req.iname, req.itype = iname, itype
@@ -85,11 +89,23 @@ func (set *fileset1) onCreateItem(msg *rcreate) {
 	item.Ctime = time.Now()
 	item.root = set.folder
 	item.owner = set
+
+	fpath := filepath.Join(item.GetPath(), CacheFile)
+	file, err := os.Create(fpath)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	defer file.Close()
+	if err := json.NewEncoder(file).Encode(item); err != nil {
+		log.Println(err)
+		return
+	}
 	msg.results <- item
 }
 
 func (set *fileset1) Delete(item Item) <-chan error {
-	errs := make(chan error, 1)
+	errs := make(chan error)
 	if item == nil {
 		close(errs)
 		return errs
@@ -112,10 +128,10 @@ func (set *fileset1) onDeleteItem(msg *rdelete) {
 	}
 }
 
-func (set *fileset1) Find(iname, itype string) FileGroupItem {
-	items := make(chan FileGroupItem, 1)
+func (set *fileset1) Find(iname, itype string) <-chan FileGroupItem {
+	items := make(chan FileGroupItem)
 	go set.search(iname, itype, items)
-	return <-items
+	return items
 }
 
 func (set *fileset1) FindNames(itype string) <-chan string {
@@ -129,34 +145,7 @@ func (set *fileset1) FindNames(itype string) <-chan string {
 	}()
 	return names
 }
-func (set *fileset1) FindOne(hint Item, receiver interface{}) <-chan error {
-	errs := make(chan error, 1)
-	if receiver == nil {
-		errs <- errors.New("null argument: receiver")
-		close(errs)
-		return errs
-	}
-	items := make(chan FileGroupItem, 1)
-	go set.search(hint.GetName(), hint.GetType(), items)
-	go func() {
-		defer close(errs)
-		item := <-items
-		if item == nil {
-			return
-		}
-		file := <-item.LoadFile(CacheFile, cacheFormat)
-		if file == nil {
-			errs <- fmt.Errorf("failed to load '%s'", CacheFile)
-			return
-		}
-		dec := json.NewDecoder(file)
-		if err := dec.Decode(receiver); err != nil {
-			errs <- err
-			return
-		}
-	}()
-	return errs
-}
+
 func (set *fileset1) search(iname, itype string, ch chan<- FileGroupItem) {
 	req := new(rsearch)
 	req.iname, req.itype = iname, itype
@@ -183,17 +172,21 @@ func (set *fileset1) onSearch(iname, itype string, results chan<- FileGroupItem,
 	item := newitem1(iname, itype)
 	item.root = set.folder
 	item.owner = set
+
+	fpath := filepath.Join(item.GetPath(), CacheFile)
+	if _, err := os.Stat(fpath); err != nil {
+		return
+	}
 	results <- item
 }
 
 func (set *fileset1) Update(hint Item, changes map[string]interface{}) <-chan error {
-	items, errs := make(chan FileGroupItem), make(chan error)
+	errs := make(chan error)
+	items := make(chan FileGroupItem)
 	go set.search(hint.GetName(), hint.GetType(), items)
-	if item := <-items; item != nil {
-		go set.update(item, changes, errs)
-	} else {
-		close(errs)
-	}
+	go func() {
+		set.update(<-items, changes, errs)
+	}()
 	return errs
 }
 func (set *fileset1) update(item FileGroupItem, detail map[string]interface{}, errs chan<- error) {
@@ -218,6 +211,7 @@ func (set *fileset1) onUpdateItem(msg *rupdate) {
 		}
 		buf, _ := json.Marshal(msg.detail)
 		for err := range item.SaveFile(CacheFile, cacheFormat, bytes.NewBuffer(buf)) {
+			log.Println(err)
 			msg.fails <- err
 		}
 	}()
@@ -242,20 +236,14 @@ func (set *fileset1) onSaveFile(msg *rsave) {
 
 func (set *fileset1) onRemoveFile(msg *rremove) {
 	defer close(msg.fails)
-	s, err := os.Stat(msg.fpath)
-	if err != nil {
-		return
-	}
-	if s.IsDir() {
-		os.RemoveAll(msg.fpath)
-	} else {
-		os.Remove(msg.fpath)
+	if err := os.RemoveAll(msg.fpath); err != nil {
+		msg.fails <- err
 	}
 }
 
 func (set *fileset1) onLoadFile(msg *rload) {
 	defer close(msg.results)
-	file, err := os.Open(msg.fpath)
+	file, err := os.OpenFile(msg.fpath, os.O_RDWR|os.O_SYNC, 0664)
 	if err != nil {
 		return
 	}

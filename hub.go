@@ -5,7 +5,10 @@ package fileitem
 //		github.com/luncliff	(dh.park@alcherainc.com)
 //
 
-import "io"
+import (
+	"io"
+	"os"
+)
 
 type rcreate struct {
 	iname, itype string
@@ -37,7 +40,7 @@ type rremove struct {
 
 type rload struct {
 	fpath   string
-	results chan<- io.ReadWriteCloser
+	results chan<- *os.File
 }
 
 type receiver interface {

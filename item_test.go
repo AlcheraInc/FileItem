@@ -29,18 +29,24 @@ func TestItemMarshalwithJSON(t *testing.T) {
 	}
 	defer owner.Close()
 
-	item1 := owner.NewItem("item9", "test_item", map[string]interface{}{
+	item1 := <-owner.NewItem("item9", "test_item", map[string]interface{}{
 		"tags": []string{"tag1", "tag2"},
 	})
 	if item1 == nil {
 		t.FailNow()
 	}
+
 	item := new(tagged)
-	for err := range owner.FindOne(item1, &item) {
-		t.Fatal(err)
+	for file := range item1.LoadFile(CacheFile, "") {
+		err := json.NewDecoder(file).Decode(&item)
+		file.Close()
+		if err != nil {
+			t.Fatal(err)
+		}
 	}
+
 	if item.Name != item1.GetName() {
-		t.Fatal("name mismatch")
+		t.Fatal("name mismatch", item.Name, item1.GetName())
 	}
 	if item.Tag == nil || len(item.Tag) == 0 {
 		t.FailNow()
@@ -69,7 +75,7 @@ func TestCreateNewItemMakesFolder(t *testing.T) {
 	}
 	defer owner.Close()
 
-	item := owner.NewItem("item11", "test_item", nil)
+	item := <-owner.NewItem("item11", "test_item", nil)
 	if item == nil {
 		t.FailNow()
 	}
@@ -108,7 +114,7 @@ func TestItemAllowMultipleSave(t *testing.T) {
 	}
 	defer owner.Close()
 
-	item := owner.NewItem("item12", "test_item", nil)
+	item := <-owner.NewItem("item12", "test_item", nil)
 	if item == nil {
 		t.FailNow()
 	}
@@ -139,7 +145,7 @@ func TestItemLoadUnknownFile(t *testing.T) {
 	}
 	defer owner.Close()
 
-	item := owner.NewItem("item13", "test_item", nil)
+	item := <-owner.NewItem("item13", "test_item", nil)
 	if item == nil {
 		t.FailNow()
 	}
@@ -158,7 +164,7 @@ func TestItemLoadAfterSave(t *testing.T) {
 	}
 	defer owner.Close()
 
-	item := owner.NewItem("item14", "test_item", nil)
+	item := <-owner.NewItem("item14", "test_item", nil)
 	if item == nil {
 		t.FailNow()
 	}
@@ -187,7 +193,7 @@ func TestItemDeleteUnknownFile(t *testing.T) {
 	}
 	defer owner.Close()
 
-	item := owner.NewItem("item15", "test_item", nil)
+	item := <-owner.NewItem("item15", "test_item", nil)
 	if item == nil {
 		t.FailNow()
 	}
@@ -203,7 +209,7 @@ func TestItemLoadAfterDelete(t *testing.T) {
 	}
 	defer owner.Close()
 
-	item := owner.NewItem("item16", "test_item", nil)
+	item := <-owner.NewItem("item16", "test_item", nil)
 	if item == nil {
 		t.FailNow()
 	}

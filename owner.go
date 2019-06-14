@@ -19,12 +19,7 @@ type ItemFinder interface {
 
 	// Find ...
 	//	Find with minimum hint. There is no receiver for the object's detail
-	Find(iname, itype string) FileGroupItem
-
-	// FindOne ...
-	// 	Find one item with given name and type.
-	//	Its detail will be loaded to receiver object
-	FindOne(hint Item, receiver interface{}) <-chan error
+	Find(iname, itype string) <-chan FileGroupItem
 }
 
 // ItemCreator ...
@@ -33,7 +28,7 @@ type ItemCreator interface {
 
 	// NewItem ...
 	//	create a new item with given information
-	NewItem(iname, itype string, detail map[string]interface{}) FileGroupItem
+	NewItem(iname, itype string, detail map[string]interface{}) <-chan FileGroupItem
 }
 
 // ItemOwner ...
