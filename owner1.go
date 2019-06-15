@@ -184,8 +184,8 @@ func (set *fileset1) onSearch(iname, itype string, results chan<- FileGroupItem,
 		return
 	}
 	defer file.Close()
-	enc := json.NewEncoder(file)
-	if err := enc.Encode(&item); err != nil {
+	dec := json.NewDecoder(file)
+	if err := dec.Decode(item); err != nil {
 		log.Println(err)
 		return
 	}
