@@ -175,7 +175,6 @@ func (set *fileset1) onSearch(iname, itype string, results chan<- FileGroupItem,
 
 	fpath := filepath.Join(item.GetPath(), CacheFile)
 	if _, err := os.Stat(fpath); err != nil {
-		log.Println(err)
 		return
 	}
 	file, err := os.Open(fpath)
