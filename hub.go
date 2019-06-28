@@ -106,9 +106,9 @@ func (h *rhub) loop(r receiver) {
 
 		case msg := <-h.searches:
 			if len(msg.iname) == 0 {
-				r.onSearchType(msg.itype, msg.results)
+				go r.onSearchType(msg.itype, msg.results)
 			} else {
-				r.onSearch(msg.iname, msg.itype, msg.results, true)
+				go r.onSearch(msg.iname, msg.itype, msg.results, true)
 			}
 		case <-h.exits:
 			return
