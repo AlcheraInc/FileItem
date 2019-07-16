@@ -14,6 +14,7 @@ import (
 type faccess struct {
 	fpath string
 	foper FileOp
+	perm  os.FileMode
 	fails chan<- error
 }
 
@@ -59,7 +60,7 @@ func (h *fsMount) serveOne(a faccess, r fileCallbacks) {
 	}
 	h.record(stat)
 
-	if err := a.foper(os.OpenFile(a.fpath, os.O_RDWR|os.O_SYNC, 0664)); err != nil {
+	if err := a.foper(os.OpenFile(a.fpath, os.O_RDWR|os.O_SYNC, a.perm)); err != nil {
 		a.fails <- err
 	}
 }

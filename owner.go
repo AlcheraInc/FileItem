@@ -20,9 +20,9 @@ type owner2 struct {
 }
 
 var (
-	owner *owner2
-	agent itemAgent
-	mount fsMount
+	owner *owner2   // owner becomes a gateway to use the agent and mount
+	agent itemAgent // representation of the items
+	mount fsMount   // provides access control to the current file system
 )
 
 func init() {
@@ -30,7 +30,6 @@ func init() {
 	owner.name = owner.GetName()
 	wd, _ := os.Getwd()
 	owner.folder = filepath.Join(wd, owner.name)
-
 	os.Mkdir(owner.folder, 0775)
 
 	agent.setup(7)
@@ -138,19 +137,33 @@ func (set *owner2) onCreateItem(msg rcreate) {
 
 func (set *owner2) FindInType(itemtype string) <-chan string {
 	names := make(chan string, 100)
-	go set.enumerateType(itemtype, names)
+	go set.enumerateDir(filepath.Join(set.folder, itemtype), names)
 	return names
 }
 
-func (set *owner2) enumerateType(itemtype string, names chan<- string) {
+func (set *owner2) enumerateDir(fpath string, names chan<- string) {
 	defer close(names)
-	files, err := ioutil.ReadDir(filepath.Join(set.folder, itemtype))
+	files, err := ioutil.ReadDir(fpath)
 	if err != nil {
 		log.Println(err)
 		return
 	}
 	for _, f := range files {
-		if f.IsDir() == false {
+		if f.IsDir() == false { // enumerateDir
+			continue
+		}
+		names <- f.Name()
+	}
+}
+func (set *owner2) enumerateFiles(fpath string, names chan<- string) {
+	defer close(names)
+	files, err := ioutil.ReadDir(fpath)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+	for _, f := range files {
+		if f.IsDir() == true { // enumerateFiles
 			continue
 		}
 		names <- f.Name()
@@ -203,7 +216,18 @@ func (set *owner2) onUpdateItem(msg rupdate) {
 
 	var req faccess
 	req.fpath = filepath.Join(set.folder, item.GetType(), item.GetName(), CacheFile)
+
+	// create locally. and delegate the work to mount
+	file, err := os.Create(req.fpath)
+	if err != nil {
+		req.fails <- err
+		close(req.fails)
+		return
+	}
+	file.Close()
+
 	req.fails = msg.fails
+	req.perm = 0664
 	req.foper = func(file *os.File, err error) error {
 		if err != nil {
 			return err // redirect without processing
@@ -212,7 +236,6 @@ func (set *owner2) onUpdateItem(msg rupdate) {
 		enc := json.NewEncoder(file)
 		return enc.Encode(item.GetOutline())
 	}
-
 	mount.accesses <- req
 }
 
@@ -226,7 +249,7 @@ func (set *owner2) UseFile(item FileItem, fname string, operation FileOp) <-chan
 	var req faccess
 	req.fpath = filepath.Join(item.GetPath(), fname)
 	req.fails, req.foper = errs, operation
-
+	req.perm = 775
 	mount.accesses <- req
 	return errs
 }
