@@ -37,5 +37,6 @@ go get -u github.com/AlcheraInc/FileItem
 Please reference the test codes.
 
 * [item_test.go](./item_test.go)
+* [file_test.go](./file_test.go)
 * [owner_test.go](./owner_test.go)
 
